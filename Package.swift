@@ -13,12 +13,17 @@ let package = Package(
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "Observe",
-            targets: ["Observe"]),
+            targets: ["Observe"]
+		),
 	],
 	dependencies: [
 		// Add your dependencies here
 		.package(
 			url: "https://github.com/piyush-2450/Collections.git",
+			branch: "main"
+		),
+		.package(
+			url: "https://github.com/realm/SwiftLint.git",
 			branch: "main"
 		)
 	],
@@ -27,10 +32,23 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "Observe",
-		dependencies: ["Collections"]),
+			dependencies: ["Collections"],
+			plugins: [
+				.plugin(
+					name: "SwiftLintBuildToolPlugin",
+					package: "swiftlint"
+				)
+			]
+		),
         .testTarget(
             name: "ObserveTests",
-            dependencies: ["Observe"]
+			dependencies: ["Observe"],
+			plugins: [
+				.plugin(
+					name: "SwiftLintBuildToolPlugin",
+					package: "swiftlint"
+				)
+			]
         ),
     ]
 )

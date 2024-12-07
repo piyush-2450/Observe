@@ -1,13 +1,13 @@
 //
-//  Observe.swift
+//  ObservableValue.swift
 //  Observe
 //
 //  Created by Piyush Banerjee on 06-Mar-2022.
 //  Copyright © 2022 Piyush Banerjee. All rights reserved.
 //
 
-import Foundation
 import Collections
+import Foundation
 
 private nonisolated(unsafe) var obQueue: DispatchQueue = .init(
 	label: "in.rebyld.Observe",
@@ -22,6 +22,12 @@ public final class ObservableValue<T>: @unchecked Sendable {
 	fileprivate typealias OBNode = OBList.Node
 
 	private var observers: OBList = .init()
+
+	// MARK: - Internal scope
+
+	deinit {
+		//
+	}
 
 	// MARK: - ObserverRef
 
@@ -40,7 +46,7 @@ public final class ObservableValue<T>: @unchecked Sendable {
 	}
 
 	public static func queue(_ queue: DispatchQueue) {
-		let oldQueue = obQueue
+		let oldQueue: DispatchQueue = obQueue
 
 		oldQueue.async(flags: .barrier) {
 			obQueue = queue
@@ -56,8 +62,10 @@ public final class ObservableValue<T>: @unchecked Sendable {
 	public var value: T {
 		didSet {
 			obQueue.async { [weak self] in
-				guard let self = self else { return }
-				self.observers.forEach { $0(self.value) }
+				guard let self else {
+					return
+				}
+				observers.forEach { $0(self.value) }
 			}
 		}
 	}
@@ -69,16 +77,17 @@ public final class ObservableValue<T>: @unchecked Sendable {
 	@discardableResult
 	public func observe(_ observer: @escaping Observer) -> ObserverRef {
 		obQueue.sync(flags: .barrier) {
-			let node = observers.append(observer)
-			return ObserverRef(node)
+			ObserverRef(observers.append(observer))
 		}
 	}
 
 	public func removeObserver(_ token: ObserverRef) {
 		obQueue.async(flags: .barrier) { [weak self] in
-			guard let self = self,
-				  let node = token.node else { return }
-			self.observers.remove(node)
+			guard let self,
+				  let node = token.node else {
+				return
+			}
+			observers.remove(node)
 		}
 	}
 
