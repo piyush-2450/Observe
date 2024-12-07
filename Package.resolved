@@ -1,0 +1,15 @@
+{
+  "originHash" : "1d5afee32666f96501cf31601143334cdd7d4a529fdc9eca7e5fc48e701c05ad",
+  "pins" : [
+    {
+      "identity" : "collections",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/piyush-2450/Collections.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "8c5dc008a3137b4af0bffe11cf296a0bcdc70328"
+      }
+    }
+  ],
+  "version" : 3
+}
