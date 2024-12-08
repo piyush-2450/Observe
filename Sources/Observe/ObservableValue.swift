@@ -9,7 +9,7 @@
 import Collections
 import Foundation
 
-private nonisolated(unsafe) var obQueue: DispatchQueue = .init(
+internal nonisolated(unsafe) var obQueue: DispatchQueue = .init(
 	label: "in.rebyld.Observe",
 	qos: .default,
 	attributes: .concurrent
@@ -24,6 +24,20 @@ public final class ObservableValue<T>: @unchecked Sendable {
 	private var observers: OBList = .init()
 
 	// MARK: - Internal scope
+
+	func removeObserver(
+		_ ref: ObserverRef,
+		_ completion: (@Sendable (ObserverCount) -> Void)? = nil
+	) {
+		obQueue.async(flags: .barrier) { [weak self] in
+			guard let self,
+				  let node = ref.node else {
+				return
+			}
+			observers.remove(node)
+			completion?(observers.count)
+		}
+	}
 
 	deinit {
 		//
@@ -40,6 +54,7 @@ public final class ObservableValue<T>: @unchecked Sendable {
 	}
 
 	public typealias Observer = (T) -> Void
+	public typealias ObserverCount = UInt
 
 	public static func queue() -> DispatchQueue {
 		obQueue
@@ -70,6 +85,12 @@ public final class ObservableValue<T>: @unchecked Sendable {
 		}
 	}
 
+	public var observerCount: ObserverCount {
+		obQueue.sync(flags: .barrier) {
+			observers.count
+		}
+	}
+
 	public init(_ value: T) {
 		self.value = value
 	}
@@ -81,10 +102,10 @@ public final class ObservableValue<T>: @unchecked Sendable {
 		}
 	}
 
-	public func removeObserver(_ token: ObserverRef) {
+	public func removeObserver(_ ref: ObserverRef) {
 		obQueue.async(flags: .barrier) { [weak self] in
 			guard let self,
-				  let node = token.node else {
+				  let node = ref.node else {
 				return
 			}
 			observers.remove(node)
