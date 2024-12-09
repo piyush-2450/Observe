@@ -9,8 +9,8 @@
 import Collections
 import Foundation
 
-public final class ObservableList<T>: List<ObservableValue<T?>>,
-									  @unchecked Sendable {
+open class ObservableList<T>: List<ObservableValue<T?>>,
+							  @unchecked Sendable {
 	// MARK: Internal scope
 
 	deinit {
