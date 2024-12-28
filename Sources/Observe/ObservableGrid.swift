@@ -1,5 +1,5 @@
 //
-//  ObservableList.swift
+//  ObservableGrid.swift
 //  Observe
 //
 //  Created by Piyush Banerjee on 06-Mar-2022.
@@ -9,7 +9,7 @@
 import Collections
 import Foundation
 
-open class ObservableList<T>: List<ObservableValue<T?>>,
+open class ObservableGrid<T>: Grid<ObservableValue<T?>>,
 							  @unchecked Sendable {
 	// MARK: Internal scope
 
@@ -19,26 +19,23 @@ open class ObservableList<T>: List<ObservableValue<T?>>,
 
 	// MARK: Public scope
 
-	public subscript(
-		row: Index,
-		column: Index
-	) -> T? {
+	public subscript(indices: LinearIndex...) -> T? {
 		get {
 			obQueue.sync(flags: .barrier) {
-				super[row, column]?.value
+				super[indices]?.value
 			}
 		}
 
 		set {
 			obQueue.sync(flags: .barrier) {
 				if let newValue {
-					if let item = super[row, column] {
+					if let item = super[indices] {
 						item.value = newValue
 					} else {
-						super[row, column] = .init(newValue)
+						super[indices] = .init(newValue)
 					}
 				} else {
-					super[row, column]?.value = nil
+					super[indices]?.value = nil
 				}
 			}
 		}
@@ -46,12 +43,11 @@ open class ObservableList<T>: List<ObservableValue<T?>>,
 
 	@discardableResult
 	public func observe(
-		_ row: Index,
-		_ column: Index,
-		_ observer: @escaping ObservableValue<T?>.Observer
+		_ indices: LinearIndex...,
+		observer: @escaping ObservableValue<T?>.Observer
 	) -> ObservableValue<T?>.ObserverRef? {
 		let item: ObservableValue<T?>? = obQueue.sync(flags: .barrier) {
-			super[row, column]
+			super[indices]
 		}
 
 		switch item {
@@ -61,7 +57,7 @@ open class ObservableList<T>: List<ObservableValue<T?>>,
 		case .none:
 			let item: ObservableValue<T?> = .init(nil)
 			obQueue.sync(flags: .barrier) {
-				super[row, column] = item
+				super[indices] = item
 			}
 			return item
 				.observe(observer)
@@ -69,35 +65,31 @@ open class ObservableList<T>: List<ObservableValue<T?>>,
 	}
 
 	public func removeObserver(
-		_ row: Index,
-		_ column: Index,
-		_ ref: ObservableValue<T?>.ObserverRef?
+		_ indices: LinearIndex...,
+		ref: ObservableValue<T?>.ObserverRef?
 	) {
 		obQueue.sync(flags: .barrier) {
 			if let ref {
-				super[row, column]?
+				super[indices]?
 					.removeObserver(ref) { observerCount in
 						if observerCount == 0 {
-							super[row, column] = nil
+							super[indices] = nil
 						}
 					}
 			}
 		}
 	}
 
-	public func removeAllObservers(
-		_ row: Index,
-		_ column: Index
-	) {
+	public func removeAllObservers(_ indices: LinearIndex...) {
 		obQueue.sync(flags: .barrier) {
-			super[row, column]?
+			super[indices]?
 				.removeAllObservers()
 		}
 	}
 
 	public func removeAllObservers() {
 		obQueue.sync(flags: .barrier) {
-			super.forEach { $2?.removeAllObservers() }
+			super.forEach { $1?.removeAllObservers() }
 		}
 	}
 }
