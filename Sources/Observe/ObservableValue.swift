@@ -15,7 +15,7 @@ internal nonisolated(unsafe) var obQueue: DispatchQueue = .init(
 	attributes: .concurrent
 )
 
-public final class ObservableValue<T>: @unchecked Sendable {
+public class ObservableValue<T>: @unchecked Sendable {
 	// MARK: - Private scope
 
 	fileprivate typealias OBList = LinkedList<Observer>
@@ -24,6 +24,18 @@ public final class ObservableValue<T>: @unchecked Sendable {
 	private var observers: OBList = .init()
 
 	// MARK: - Internal scope
+
+	final class UncheckedSendableClosure: @unchecked Sendable {
+		let closure: () -> Void
+
+		deinit {
+			//
+		}
+
+		init(_ closure: @escaping () -> Void) {
+			self.closure = closure
+		}
+	}
 
 	func removeObserver(
 		_ ref: ObserverRef,
@@ -37,6 +49,21 @@ public final class ObservableValue<T>: @unchecked Sendable {
 			observers.remove(node)
 			completion?(observers.count)
 		}
+	}
+
+	func asyncAfter(
+		timeInterval: TimeInterval,
+		execute: @escaping () -> Void
+	) {
+		let wrapped: UncheckedSendableClosure = .init(execute)
+
+		obQueue
+			.asyncAfter(
+				deadline: .now() + timeInterval,
+				flags: .barrier
+			) {
+				wrapped.closure()
+			}
 	}
 
 	deinit {
@@ -117,4 +144,41 @@ public final class ObservableValue<T>: @unchecked Sendable {
 			self?.observers = LinkedList<Observer>()
 		}
 	}
+
+	// swiftlint:disable explicit_type_interface
+	public func wait(timeout: TimeInterval = 5) async throws -> T where T: Sendable {
+		try await withCheckedThrowingContinuation { continuation in
+			let start = Date()
+			var isResumed = false
+
+			let ref = self.observe { result in
+				guard isResumed == false else {
+					return
+				}
+				isResumed = true
+
+				self.removeObserver(ref)
+				continuation.resume(returning: result)
+			}
+
+			asyncAfter(timeInterval: timeout) {
+				guard isResumed == false else {
+					return
+				}
+				isResumed = true
+
+				if Date().timeIntervalSince(start) >= timeout {
+					self.removeObserver(ref)
+					continuation.resume(
+						throwing: NSError(
+							domain: "TimeoutError",
+							code: 1,
+							userInfo: nil
+						)
+					)
+				}
+			}
+		}
+	}
+	// swiftlint:enable explicit_type_interface
 }
