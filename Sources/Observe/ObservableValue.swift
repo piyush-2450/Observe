@@ -146,7 +146,26 @@ public class ObservableValue<T>: @unchecked Sendable {
 	}
 
 	// swiftlint:disable explicit_type_interface
-	public func wait(timeout: TimeInterval = 5) async throws -> T where T: Sendable {
+	public func wait(timeout: TimeInterval = 5) -> T? {
+		let group = DispatchGroup()
+		group.enter()
+
+		let ref = self.observe { _ in
+			self.removeObserver(ref)
+			group.leave()
+		}
+
+		switch group.wait(timeout: .now() + timeout) {
+		case .success:
+			return value
+
+		case .timedOut:
+			return nil
+		}
+	}
+
+	@available(iOS 13.0.0, *)
+	public func asyncWait(timeout: TimeInterval = 5) async throws -> T where T: Sendable {
 		try await withCheckedThrowingContinuation { continuation in
 			let start = Date()
 			var isResumed = false
